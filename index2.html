@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>🛺 Ready Auto</title>
+
+<style>
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    background: linear-gradient(to right, #f0f2f5, #d6e4f0);
+  }
+  header {
+    background-color: #ff6600;
+    padding: 15px;
+    color: white;
+    text-align: center;
+    font-size: 28px;
+    font-weight: bold;
+    letter-spacing: 2px;
+  }
+  nav {
+    display: flex;
+    justify-content: center;
+    background-color: #cc5200;
+    flex-wrap: wrap;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  }
+  nav button {
+    background: none;
+    border: none;
+    color: white;
+    padding: 14px 20px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s;
+  }
+  nav button:hover {
+    background-color: #994d00;
+  }
+  .section {
+    display: none;
+    padding: 20px;
+    background: white;
+    margin: 20px;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    animation: fadeIn 0.5s ease-in;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .active {
+    display: block;
+  }
+  button {
+    padding: 10px 15px;
+    background-color: #ff6600;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.3s;
+  }
+  button:hover {
+    background-color: #e65c00;
+  }
+  .status {
+    margin-top: 10px;
+    font-weight: bold;
+    color: #333;
+  }
+  input, select {
+    padding: 8px;
+    margin-top: 5px;
+    width: 100%;
+    max-width: 300px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+  }
+  .driver-box {
+    margin: 10px 0;
+    padding: 15px;
+    background: #fff8f0;
+    border-left: 5px solid #ff6600;
+    border-radius: 6px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  }
+</style>
+
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+</head>
+<body>
+<header>🛺 Ready Auto</header>
+<nav>
+  <button onclick="showSection('publicSection')">Public</button>
+  <button onclick="showSection('driverSection')">Driver</button>
+  <button onclick="showSection('adminLoginSection')">Admin</button>
+  <button onclick="showSection('aboutSection')">About</button>
+</nav>
+
+<!-- Public Section -->
+<div class="section active" id="publicSection">
+  <h2>🚖 Public - Find a Free Auto</h2>
+  <div id="autoList"><p>Loading available autos...</p></div>
+</div>
+
+<!-- Driver Section -->
+<div class="section" id="driverSection">
+  <h2>🧑‍✈️ Driver - Update Your Status</h2>
+  <label for="driverId">Driver ID:</label>
+  <input type="text" id="driverId" placeholder="Enter your ID" autocomplete="off" /><br /><br />
+  <button onclick="setStatus('Free')">Set as Free</button>
+  <button onclick="setStatus('In Ride')">Set as In Ride</button>
+  <div class="status" id="statusDisplay">Status: Not Set</div>
+</div>
+
+<!-- Admin Login Section -->
+<div class="section" id="adminLoginSection">
+  <h2>🔐 Admin Login</h2>
+  <label for="adminUser">Username:</label>
+  <input type="text" id="adminUser" /><br />
+  <label for="adminPass">Password:</label>
+  <input type="password" id="adminPass" /><br /><br />
+  <button onclick="adminLogin()">Login</button>
+  <div class="status" id="loginStatus">Login Required</div>
+</div>
+
+<!-- Admin Section -->
+<div class="section" id="adminSection">
+  <h2>🛠️ Admin - Manage Drivers</h2>
+  <label for="adminId">Driver ID:</label>
+  <input type="text" id="adminId" placeholder="e.g., A104" autocomplete="off" /><br />
+  <label for="adminName">Driver Name:</label>
+  <input type="text" id="adminName" placeholder="e.g., Sunil" autocomplete="off" /><br />
+  <label for="adminPhone">Phone Number:</label>
+  <input type="text" id="adminPhone" placeholder="e.g., 9876543210" autocomplete="off" /><br />
+  <label for="adminStand">Auto Stand:</label>
+  <input type="text" id="adminStand" placeholder="e.g., KVLD1" autocomplete="off" /><br /><br />
+  <button onclick="addOrUpdateDriver()">Add / Update Driver</button>
+  <div class="status" id="adminStatus">Status: Waiting for input</div>
+  <div>
+    <h3>Current Drivers:</h3>
+    <div id="driverList"></div>
+  </div>
+  <br />
+  <button onclick="logoutAdmin()">Logout</button>
+</div>
+
+<!-- About Section -->
+<div class="section" id="aboutSection">
+  <h2>📜 About</h2>
+  <p>This platform was created by <strong>Paul M Alex</strong> (House Name: <em>Manakkatu</em>) with the help of <strong>AI</strong>.</p>
+</div>
+
+<script>
+  // Firebase config + init
+  const firebaseConfig = {
+    apiKey: "AIzaSyCfN8jTtQ37fhIkP4RqWlkLmIPtpX3bleE",
+    authDomain: "readyauto-96336.firebaseapp.com",
+    databaseURL: "https://readyauto-96336-default-rtdb.firebaseio.com",
+    projectId: "readyauto-96336",
+    storageBucket: "readyauto-96336.appspot.com",
+    messagingSenderId: "80342438863",
+    appId: "1:80342438863:web:2f4e23920c8f27f85438ba"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const database = firebase.database();
+
+  // Admin creds
+  const adminCredentials = { username: 'admin', password: 'ready123' };
+
+  // Show section by ID
+  function showSection(id) {
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+  }
+
+  // Admin login function
+  function adminLogin() {
+    const user = document.getElementById('adminUser').value.trim();
+    const pass = document.getElementById('adminPass').value.trim();
+    const status = document.getElementById('loginStatus');
+
+    if (user === adminCredentials.username && pass === adminCredentials.password) {
+      showSection('adminSection');
+      status.textContent = 'Login Successful';
+      loadDrivers();
+    } else {
+      status.textContent = 'Login Failed: Invalid credentials';
+    }
+  }
+
+  // Load all drivers to admin view and also update public list
+  function loadDrivers() {
+    const driverList = document.getElementById('driverList');
+    const autoList = document.getElementById('autoList');
+    driverList.innerHTML = 'Loading drivers...';
+    autoList.innerHTML = 'Loading available autos...';
+
+    database.ref('drivers').on('value', snapshot => {
+      const drivers = snapshot.val() || {};
+      driverList.innerHTML = '';
+      autoList.innerHTML = '';
+
+      const keys = Object.keys(drivers);
+      if (keys.length === 0) {
+        driverList.innerHTML = '<p>No drivers added yet.</p>';
+        autoList.innerHTML = '<p>No autos available currently.</p>';
+        return;
+      }
+
+      keys.forEach(id => {
+        const d = drivers[id];
+
+        // Admin view
+        const div = document.createElement('div');
+        div.className = 'driver-box';
+        div.innerHTML = `
+          <b>ID:</b> ${id} <br/>
+          <b>Name:</b> ${d.name} <br/>
+          <b>Phone:</b> ${d.phone} <br/>
+          <b>Stand:</b> ${d.stand} <br/>
+          <b>Status:</b> ${d.status || 'Not set'} <br/>
+          <button onclick="editDriver('${id}')">Edit</button>
+          <button onclick="removeDriver('${id}')">Remove</button>
+        `;
+        driverList.appendChild(div);
+
+        // Public view: only free autos listed
+        if (d.status === 'Free') {
+          const publicDiv = document.createElement('div');
+          publicDiv.className = 'driver-box';
+          publicDiv.innerHTML = `
+            <b>Name:</b> ${d.name} <br/>
+            <b>Stand:</b> ${d.stand} <br/>
+            <b>Status:</b> ${d.status}
+          `;
+          autoList.appendChild(publicDiv);
+        }
+      });
+    });
+  }
+
+  // Edit driver data in admin form
+  function editDriver(id) {
+    database.ref('drivers/' + id).once('value').then(snapshot => {
+      const d = snapshot.val();
+      if (d) {
+        document.getElementById('adminId').value = id;
+        document.getElementById('adminName').value = d.name || '';
+        document.getElementById('adminPhone').value = d.phone || '';
+        document.getElementById('adminStand').value = d.stand || '';
+        document.getElementById('adminStatus').textContent = `Editing driver: ${id}`;
+        showSection('adminSection');
+      }
+    });
+  }
+
+  // Remove driver from Firebase
+  function removeDriver(id) {
+    if (confirm(`Are you sure you want to remove driver ${id}?`)) {
+      database.ref('drivers/' + id).remove();
+      alert(`Driver ${id} removed.`);
+    }
+  }
+
+  // Add or update driver in Firebase
+  function addOrUpdateDriver() {
+    const id = document.getElementById('adminId').value.trim();
+    const name = document.getElementById('adminName').value.trim();
+    const phone = document.getElementById('adminPhone').value.trim();
+    const stand = document.getElementById('adminStand').value.trim();
+    const status = 'Free'; // default when adding or updating
+
+    if (!id || !name || !phone || !stand) {
+      alert('Please fill all fields!');
+      return;
+    }
+
+    database.ref('drivers/' + id).set({
+      name: name,
+      phone: phone,
+      stand: stand,
+      status: status
+    }).then(() => {
+      document.getElementById('adminStatus').textContent = `Driver ${id} saved!`;
+      loadDrivers();
+    }).catch(err => {
+      alert('Error saving driver: ' + err.message);
+    });
+  }
+
+  // Logout admin
+  function logoutAdmin() {
+    // Clear admin fields and go back to login
+    document.getElementById('adminUser').value = '';
+    document.getElementById('adminPass').value = '';
+    document.getElementById('loginStatus').textContent = 'Login Required';
+    showSection('adminLoginSection');
+  }
+
+  // Driver sets status by entering their ID
+  function setStatus(newStatus) {
+    const driverId = document.getElementById('driverId').value.trim();
+    const statusDisplay = document.getElementById('statusDisplay');
+
+    if (!driverId) {
+      alert('Please enter your Driver ID.');
+      return;
+    }
+
+    const driverRef = database.ref('drivers/' + driverId);
+
+    driverRef.once('value').then(snapshot => {
+      if (!snapshot.exists()) {
+        alert('Driver ID not found. Please contact admin.');
+        return;
+      }
+
+      driverRef.update({ status: newStatus })
+        .then(() => {
+          statusDisplay.textContent = `Status updated to: ${newStatus}`;
+        })
+        .catch(err => {
+          alert('Error updating status: ' + err.message);
+        });
+    });
+  }
+
+  // Update driver's current status live on driver page if they enter ID
+  document.getElementById('driverId').addEventListener('input', function() {
+    const id = this.value.trim();
+    const statusDisplay = document.getElementById('statusDisplay');
+    if (id === '') {
+      statusDisplay.textContent = 'Status: Not Set';
+      return;
+    }
+    database.ref('drivers/' + id).once('value').then(snapshot => {
+      if (snapshot.exists()) {
+        const d = snapshot.val();
+        statusDisplay.textContent = 'Status: ' + (d.status || 'Not set');
+      } else {
+        statusDisplay.textContent = 'Driver ID not found';
+      }
+    });
+  });
+
+  // On page load, show public autos list
+  window.onload = function() {
+    loadDrivers();
+  }
+</script>
+
+</body>
+</html>
